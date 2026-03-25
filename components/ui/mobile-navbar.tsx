@@ -27,6 +27,7 @@ import { AddFundsBtn } from "../Admin/AdminCreate/components/add-fund-btn";
 import { useState } from "react";
 import { WithdrawFundsBtn } from "../Admin/AdminCreate/components/withdraw-btn";
 import { HowItWorksDialog } from "../CreateMarket/CreateMarketForm/View/create-market-view";
+import { useSolanaAuth } from "@/hooks/useSolanaAuth";
 
 interface ProfileData {
   username: string | null;
@@ -38,11 +39,22 @@ export const MobileNavbar = () => {
   const { publicKey, connected } = useWallet();
   const { setVisible } = useWalletModal();
   const router = useRouter();
+  const { isLoggedIn, doLogin } = useSolanaAuth();
 
   async function submit(url: string) {
     if (!connected) {
       setVisible(true);
       return;
+    }
+    // Ensure user is authenticated with backend before navigating to protected routes
+    if (!isLoggedIn) {
+      try {
+        await doLogin();
+        await new Promise((r) => setTimeout(r, 500));
+      } catch (err) {
+        console.error("Login failed:", err);
+        return;
+      }
     }
     router.push(url);
   }

@@ -28,6 +28,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ThirdWebConnectBtn } from "../thirdweb-connect-btn";
 import { useAdminStore } from "@/store/useAdminStore";
+import { useSolanaAuth } from "@/hooks/useSolanaAuth";
 
 export function UserAppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const { publicKey, connected } = useWallet();
@@ -35,11 +36,23 @@ export function UserAppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const router = useRouter();
 
   const checkAdmin = useAdminStore((state) => state.checkAdmin);
+  const { isLoggedIn, doLogin } = useSolanaAuth();
 
   async function submit(url: string) {
     if (!connected) {
       setVisible(true);
       return;
+    }
+    // Ensure user is authenticated with backend before navigating to protected routes
+    if (!isLoggedIn) {
+      try {
+        await doLogin();
+        // Small delay to allow cookie to be set
+        await new Promise((r) => setTimeout(r, 500));
+      } catch (err) {
+        console.error("Login failed:", err);
+        return;
+      }
     }
     router.push(url);
   }

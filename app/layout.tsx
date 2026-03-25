@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { SolanaProvider } from "@/components/SolanaProvider";
 import { AdminProvider } from "@/components/AdminProvider";
+import { AuthProvider } from "@/components/AuthProvider";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -25,7 +26,9 @@ export default function RootLayout({
         className={`${jakarta.className} antialiased bg-[#0C0C0C] text-white`}
       >
         <SolanaProvider>
-          <AdminProvider>{children}</AdminProvider>
+          <AuthProvider>
+            <AdminProvider>{children}</AdminProvider>
+          </AuthProvider>
         </SolanaProvider>
       </body>
     </html>

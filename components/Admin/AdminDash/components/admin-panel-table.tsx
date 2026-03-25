@@ -162,8 +162,11 @@ export const AssignDialog = ({ onSuccess }: { onSuccess: () => void }) => {
   const [open, setOpen] = useState(false);
 
   const handleSubmit = async () => {
-    if (wallet.trim().length !== 42) {
-      showErrorToast("Please enter a valid wallet address");
+    const trimmed = wallet.trim();
+    const isEVM = trimmed.startsWith("0x") && trimmed.length === 42;
+    const isSolana = !trimmed.startsWith("0x") && trimmed.length >= 32 && trimmed.length <= 44;
+    if (!isEVM && !isSolana) {
+      showErrorToast("Please enter a valid wallet address (EVM or Solana)");
       return;
     }
 

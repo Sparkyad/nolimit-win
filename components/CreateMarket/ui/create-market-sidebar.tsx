@@ -28,6 +28,9 @@ import { Separator } from "@/components/ui/separator";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ThirdWebConnectBtn } from "@/components/thirdweb-connect-btn";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { useSolanaAuth } from "@/hooks/useSolanaAuth";
 import { useAdminStore } from "@/store/useAdminStore";
 
 export function CreateMarketSidebar(
@@ -169,10 +172,31 @@ export function CreateMarketBtn({
   icon: React.ReactNode;
 }) {
   const router = useRouter();
+  const { connected } = useWallet();
+  const { setVisible } = useWalletModal();
+  const { isLoggedIn, doLogin } = useSolanaAuth();
+
+  async function handleClick() {
+    if (!connected) {
+      setVisible(true);
+      return;
+    }
+    if (!isLoggedIn) {
+      try {
+        await doLogin();
+        await new Promise((r) => setTimeout(r, 500));
+      } catch (err) {
+        console.error("Login failed:", err);
+        return;
+      }
+    }
+    router.push("/create-market");
+  }
+
   return (
     <SidebarMenuItem>
       <div
-        onClick={() => router.push("/create-market")}
+        onClick={handleClick}
         className={cn(
           "flex items-center gap-3 rounded-md px-3 py-3 cursor-pointer transition-all duration-300 overflow-hidden",
           "group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:justify-start bg-gradient-to-t from-[#0A2F1F] to-[#14B87A] transition-colors text-white"
