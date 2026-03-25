@@ -1,7 +1,6 @@
 "use client";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useCallback, useEffect, useState } from "react";
-import bs58 from "bs58";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
 
@@ -31,34 +30,50 @@ export function useSolanaAuth() {
     if (!publicKey || !signMessage) return;
 
     try {
-      // Get login payload from backend
+      // Step 1: Get Solana login payload (nonce) from backend
       const payloadRes = await fetch(
-        `${API_BASE_URL}/api/auth/generate-login-payload?address=${publicKey.toBase58()}`
+        `${API_BASE_URL}/api/auth/solana-payload?address=${publicKey.toBase58()}`,
+        { credentials: "include" }
       );
+      if (!payloadRes.ok) {
+        throw new Error("Failed to get login payload");
+      }
       const payload = await payloadRes.json();
 
-      // Sign the message
-      const message = new TextEncoder().encode(
-        payload.message || JSON.stringify(payload)
-      );
-      const signature = await signMessage(message);
+      // Step 2: Build the human-readable sign message
+      const messageText = [
+        `${payload.domain} wants you to sign in with your Solana account:`,
+        payload.address,
+        "",
+        payload.statement,
+        "",
+        `Nonce: ${payload.nonce}`,
+        `Issued At: ${payload.issued_at}`,
+        `Expiration Time: ${payload.expiration_time}`,
+      ].join("\n");
 
-      // Send signed payload to backend
-      const loginRes = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      // Step 3: Sign the message with Solana wallet
+      const messageBytes = new TextEncoder().encode(messageText);
+      const signatureBytes = await signMessage(messageBytes);
+
+      // Step 4: Send to backend for verification (base64 encoded signature)
+      const signatureBase64 = Buffer.from(signatureBytes).toString("base64");
+
+      const loginRes = await fetch(`${API_BASE_URL}/api/auth/solana-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           payload,
-          signature: {
-            signature: bs58.encode(signature),
-            type: "solana",
-          },
+          signature: signatureBase64,
         }),
         credentials: "include",
       });
 
       if (loginRes.ok) {
         setIsLoggedIn(true);
+      } else {
+        const err = await loginRes.json().catch(() => ({}));
+        console.error("Login failed:", err);
       }
     } catch (error) {
       console.error("Login failed:", error);
