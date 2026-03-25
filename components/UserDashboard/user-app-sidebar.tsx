@@ -47,14 +47,14 @@ export function UserAppSidebar(props: React.ComponentProps<typeof Sidebar>) {
     if (!isLoggedIn) {
       try {
         await doLogin();
-        // Small delay to allow cookie to be set
-        await new Promise((r) => setTimeout(r, 500));
       } catch (err) {
         console.error("Login failed:", err);
         return;
       }
     }
-    router.push(url);
+    // Use window.location.href for protected routes to force a full server render
+    // so the (Create) layout can read the auth_token cookie
+    window.location.href = url;
   }
 
   return (

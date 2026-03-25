@@ -184,13 +184,13 @@ export function CreateMarketBtn({
     if (!isLoggedIn) {
       try {
         await doLogin();
-        await new Promise((r) => setTimeout(r, 500));
       } catch (err) {
         console.error("Login failed:", err);
         return;
       }
     }
-    router.push("/create-market");
+    // Use window.location.href to force full server render so cookie is read
+    window.location.href = "/create-market";
   }
 
   return (

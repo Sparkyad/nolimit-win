@@ -9,8 +9,22 @@ export function useSolanaAuth() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Check login status by verifying the cookie exists on the frontend domain
+  // We check both the backend (for API auth) and the frontend cookie (for SSR page access)
   const checkLoginStatus = useCallback(async () => {
     try {
+      // Check if the frontend cookie is set (same-origin, always works)
+      const frontendCheck = await fetch("/api/auth/check-cookie");
+      if (frontendCheck.ok) {
+        const data = await frontendCheck.json();
+        if (data.authenticated) {
+          setIsLoggedIn(true);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Fallback: check backend directly
       const res = await fetch(`${API_BASE_URL}/api/auth/isLoggedIn`, {
         credentials: "include",
       });
@@ -70,7 +84,27 @@ export function useSolanaAuth() {
       });
 
       if (loginRes.ok) {
-        setIsLoggedIn(true);
+        const loginData = await loginRes.json();
+
+        // Step 5: Set the cookie on the frontend domain via our API route
+        // This is critical because the backend (onrender.com) cannot set cookies
+        // for the frontend domain (nolimit.win / vercel.app)
+        if (loginData.token) {
+          const cookieRes = await fetch("/api/auth/set-cookie", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: loginData.token }),
+          });
+
+          if (cookieRes.ok) {
+            setIsLoggedIn(true);
+          } else {
+            console.error("Failed to set frontend cookie");
+          }
+        } else {
+          // Fallback: backend didn't return token, but cookie might have been set cross-origin
+          setIsLoggedIn(true);
+        }
       } else {
         const err = await loginRes.json().catch(() => ({}));
         console.error("Login failed:", err);
@@ -82,10 +116,17 @@ export function useSolanaAuth() {
 
   const doLogout = useCallback(async () => {
     try {
+      // Clear backend cookie
       await fetch(`${API_BASE_URL}/api/auth/logout`, {
         method: "POST",
         credentials: "include",
       });
+
+      // Clear frontend cookie
+      await fetch("/api/auth/set-cookie", {
+        method: "DELETE",
+      });
+
       setIsLoggedIn(false);
       disconnect();
       window.location.href = "/";

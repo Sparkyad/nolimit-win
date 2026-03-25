@@ -11,11 +11,13 @@ import { useAdminStore } from "@/store/useAdminStore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useSolanaAuth } from "@/hooks/useSolanaAuth";
 
 export const Header = () => {
   const { publicKey, connected } = useWallet();
   const { setVisible } = useWalletModal();
   const router = useRouter();
+  const { isLoggedIn, doLogin } = useSolanaAuth();
   const [country, setCountry] = useState<string | null>(null);
   const isUS = country === "US";
   useEffect(() => {
@@ -76,7 +78,15 @@ export const Header = () => {
                           setVisible(true);
                           return;
                         }
-                        router.push("/create-market");
+                        if (!isLoggedIn) {
+                          try {
+                            await doLogin();
+                          } catch (err) {
+                            console.error("Login failed:", err);
+                            return;
+                          }
+                        }
+                        window.location.href = "/create-market";
                       }}
                     >
                       <div>Create Market</div>
