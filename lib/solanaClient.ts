@@ -19,11 +19,9 @@ export const PLATFORM_TREASURY = new PublicKey(
 // API base URL
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
 
-// Solana connection
+// Solana connection (hardcoded Helius RPC to avoid env var override with rate-limited public endpoint)
 export function getConnection(): Connection {
-  const rpcUrl =
-    process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://mainnet.helius-rpc.com/?api-key=c9227f16-f3e6-4a63-a5a3-15d469cf32c8";
-  return new Connection(rpcUrl, "confirmed");
+  return new Connection("https://mainnet.helius-rpc.com/?api-key=c9227f16-f3e6-4a63-a5a3-15d469cf32c8", "confirmed");
 }
 
 // Derive market PDA
