@@ -6,9 +6,9 @@ export const PROGRAM_ID = new PublicKey(
   process.env.NEXT_PUBLIC_SOLANA_PROGRAM_ID || "2Uara5WztgDSC9h53URFf2DjZk4ywqfFbo2oV4SsjqzL"
 );
 
-// USDC Mint on Solana mainnet
+// USDC Mint on Solana mainnet (hardcoded to avoid env var mismatch)
 export const USDC_MINT = new PublicKey(
-  process.env.NEXT_PUBLIC_SOLANA_USDC_MINT || "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+  "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 );
 
 // Platform treasury for fee collection
