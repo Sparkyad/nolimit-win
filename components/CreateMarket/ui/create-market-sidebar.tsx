@@ -30,7 +30,6 @@ import Link from "next/link";
 import { ThirdWebConnectBtn } from "@/components/thirdweb-connect-btn";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { useSolanaAuth } from "@/hooks/useSolanaAuth";
 import { useAdminStore } from "@/store/useAdminStore";
 
 export function CreateMarketSidebar(
@@ -96,11 +95,6 @@ export function CreateMarketSidebar(
               <HugeiconsIcon icon={DashboardBrowsingIcon} className="size-6" />
             }
           />
-          {/* <NavItem
-            label="Create"
-            href="/create-market"
-            icon={<HugeiconsIcon icon={PlusSignIcon} className="size-6" />}
-          /> */}
           <NavItem
             label="Profile"
             href="/profile"
@@ -174,23 +168,13 @@ export function CreateMarketBtn({
   const router = useRouter();
   const { connected } = useWallet();
   const { setVisible } = useWalletModal();
-  const { isLoggedIn, doLogin } = useSolanaAuth();
 
-  async function handleClick() {
+  function handleClick() {
     if (!connected) {
       setVisible(true);
       return;
     }
-    if (!isLoggedIn) {
-      try {
-        await doLogin();
-      } catch (err) {
-        console.error("Login failed:", err);
-        return;
-      }
-    }
-    // Use window.location.href to force full server render so cookie is read
-    window.location.href = "/create-market";
+    router.push("/create-market");
   }
 
   return (

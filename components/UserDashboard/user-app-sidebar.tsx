@@ -28,33 +28,18 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ThirdWebConnectBtn } from "../thirdweb-connect-btn";
 import { useAdminStore } from "@/store/useAdminStore";
-import { useSolanaAuth } from "@/hooks/useSolanaAuth";
 
 export function UserAppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const { publicKey, connected } = useWallet();
   const { setVisible } = useWalletModal();
   const router = useRouter();
 
-  const checkAdmin = useAdminStore((state) => state.checkAdmin);
-  const { isLoggedIn, doLogin } = useSolanaAuth();
-
-  async function submit(url: string) {
+  function submit(url: string) {
     if (!connected) {
       setVisible(true);
       return;
     }
-    // Ensure user is authenticated with backend before navigating to protected routes
-    if (!isLoggedIn) {
-      try {
-        await doLogin();
-      } catch (err) {
-        console.error("Login failed:", err);
-        return;
-      }
-    }
-    // Use window.location.href for protected routes to force a full server render
-    // so the (Create) layout can read the auth_token cookie
-    window.location.href = url;
+    router.push(url);
   }
 
   return (
@@ -91,11 +76,6 @@ export function UserAppSidebar(props: React.ComponentProps<typeof Sidebar>) {
 
       <SidebarContent>
         <SidebarMenu className="flex flex-col gap-3">
-          {/* <NavItem
-            label="Admin"
-            icon={<HugeiconsIcon icon={ManagerIcon} className="size-6 text-[#F5C16C]" />}
-            href="/admin-dash"
-          /> */}
           <NavItem
             label="Home"
             icon={<HugeiconsIcon icon={Home01Icon} className="size-6" />}
@@ -163,17 +143,6 @@ export function UserAppSidebar(props: React.ComponentProps<typeof Sidebar>) {
               </span>
             </div>
           </SidebarMenuItem>
-          {/* <div
-            onClick={() => submit("/dashboard")}
-            className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-3 cursor-pointer transition-all duration-300 overflow-hidden",
-              "group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:justify-start",
-              "hover:bg-[#2a2a2a]"
-            )}
-          >
-            <HugeiconsIcon icon={DashboardBrowsingIcon} className="size-6" />
-            Dashboard
-          </div> */}
 
           <CreateMarketBtn
             label="Create"
@@ -241,7 +210,7 @@ function CreateMarketBtn({
 }: {
   label: string;
   icon: React.ReactNode;
-  submit: (url: string) => Promise<void>;
+  submit: (url: string) => void;
 }) {
   return (
     <SidebarMenuItem>

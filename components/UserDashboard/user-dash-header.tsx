@@ -5,19 +5,16 @@ import { Button } from "../ui/button";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-// Solana auth replaces thirdweb
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import { useAdminStore } from "@/store/useAdminStore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useSolanaAuth } from "@/hooks/useSolanaAuth";
 
 export const Header = () => {
   const { publicKey, connected } = useWallet();
   const { setVisible } = useWalletModal();
   const router = useRouter();
-  const { isLoggedIn, doLogin } = useSolanaAuth();
   const [country, setCountry] = useState<string | null>(null);
   const isUS = country === "US";
   useEffect(() => {
@@ -30,6 +27,13 @@ export const Header = () => {
 
   const checkAdmin = useAdminStore((state) => state.checkAdmin);
 
+  function goToCreateMarket() {
+    if (!connected) {
+      setVisible(true);
+      return;
+    }
+    router.push("/create-market");
+  }
 
   return (
     <>
@@ -47,10 +51,6 @@ export const Header = () => {
             <div className="hidden md:flex items-center gap-2 pl-4 pr-3">
               <>
                 <SidebarTrigger className="-ml-1 cursor-pointer" />{" "}
-                {/* <Separator
-                orientation="vertical"
-                className="mr-2 data-[orientation=vertical]:h-4 bg-[#6E6E6E]"
-                /> */}
               </>
             </div>
 
@@ -72,22 +72,7 @@ export const Header = () => {
                       variant="marketGradient"
                       size="sm"
                       className="text-xs tracking-wide cursor-pointer rounded-sm"
-                      asChild
-                      onClick={async () => {
-                        if (!connected) {
-                          setVisible(true);
-                          return;
-                        }
-                        if (!isLoggedIn) {
-                          try {
-                            await doLogin();
-                          } catch (err) {
-                            console.error("Login failed:", err);
-                            return;
-                          }
-                        }
-                        window.location.href = "/create-market";
-                      }}
+                      onClick={goToCreateMarket}
                     >
                       <div>Create Market</div>
                     </Button>
@@ -122,8 +107,8 @@ export const Header = () => {
             <p className="text-2xl font-bold">NoLimit</p>
           </div>
           <div>
-            <Button variant="marketGradient" asChild>
-              <Link href="/create-market">Create Market</Link>
+            <Button variant="marketGradient" onClick={goToCreateMarket}>
+              <div>Create Market</div>
             </Button>
           </div>
         </div>
