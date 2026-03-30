@@ -22,7 +22,7 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
 // Solana connection
 export function getConnection(): Connection {
   const rpcUrl =
-    process.env.NEXT_PUBLIC_SOLANA_RPC_URL || clusterApiUrl("mainnet-beta");
+    process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://mainnet.helius-rpc.com/?api-key=c9227f16-f3e6-4a63-a5a3-15d469cf32c8";
   return new Connection(rpcUrl, "confirmed");
 }
 
