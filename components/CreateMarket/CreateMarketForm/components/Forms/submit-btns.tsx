@@ -4,9 +4,9 @@ import { MarketFormData } from "../../View/create-market-view";
 import { Button } from "@/components/ui/button";
 import { showErrorToast, showSuccessToast } from "../form-toasts";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { slugifyFilename } from "@/utils/slugify-filename";
-import { getUsdcBalance } from "@/lib/solanaTrade";
+import { getUsdcBalance, getUsdcBalanceDebug } from "@/lib/solanaTrade";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 // thirdweb removed - using Solana
@@ -52,6 +52,18 @@ export const SubmitBtns = ({
   const isAdminOrMod = useAdminStore((state) => state.role === "admin" || state.role === "moderator");
 
   const [inProgress, setInProgress] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [showDebug, setShowDebug] = useState(false);
+
+  // Auto-check balance when wallet connects
+  useEffect(() => {
+    if (walletPublicKey && connected) {
+      getUsdcBalanceDebug(walletPublicKey.toBase58()).then(info => {
+        setDebugInfo(info);
+        console.log("[Debug Panel] Balance info:", info);
+      });
+    }
+  }, [walletPublicKey, connected]);
 
   const handleSubmit = async () => {
     if (!walletPublicKey || !connected) return;
@@ -119,9 +131,19 @@ export const SubmitBtns = ({
       setInProgress(true)
       if (!isAdminOrMod && walletPublicKey) {
         const marketCreationFee = BigInt(10_000_000); // $10 USDC in 6 decimals
+        console.log("[Submit] Checking balance for:", walletPublicKey.toBase58());
+        console.log("[Submit] isAdminOrMod:", isAdminOrMod);
         const usdcBalance = await getUsdcBalance(walletPublicKey.toBase58());
+        console.log("[Submit] Balance result:", usdcBalance.toString());
+        console.log("[Submit] Required:", marketCreationFee.toString());
+        console.log("[Submit] Has enough:", usdcBalance >= marketCreationFee);
+        
+        // Refresh debug info
+        const freshDebug = await getUsdcBalanceDebug(walletPublicKey.toBase58());
+        setDebugInfo(freshDebug);
+        
         if (usdcBalance < marketCreationFee) {
-          showErrorToast("You need at least $10 USDC to create a market.");
+          showErrorToast(`You need at least $10 USDC to create a market. Your balance: ${(Number(usdcBalance) / 1_000_000).toFixed(2)} USDC`);
           setInProgress(false);
           return;
         }
@@ -168,7 +190,7 @@ export const SubmitBtns = ({
       showSuccessToast(
         editId
           ? "Market resubmitted successfully! Our team will review it shortly. This may take up to 1 hour."
-          : "Market submitted successfully! It’s now under review and may take up to 1 hour to appear live."
+          : "Market submitted successfully! It's now under review and may take up to 1 hour to appear live."
       );
 
       router.push("/dashboard");
@@ -184,16 +206,54 @@ export const SubmitBtns = ({
   };
 
   return (
-    <div className="max-w-96 flex justify-end items-center">
-      <Button
-        onClick={handleSubmit}
-        variant="marketGradient"
-        className="cursor-pointer"
-        disabled={inProgress}
-      >
-        {editId ? "Resubmit Market" : "Submit Market"}
-        {inProgress && <span className="animate-pulse">⏳</span>}
-      </Button>
+    <div className="max-w-96 flex flex-col gap-2">
+      {/* Debug Panel - temporary for troubleshooting */}
+      {connected && walletPublicKey && (
+        <div className="text-xs">
+          <button 
+            onClick={() => setShowDebug(!showDebug)}
+            className="text-emerald-400 underline cursor-pointer mb-1"
+          >
+            {showDebug ? "Hide" : "Show"} Wallet Debug Info
+          </button>
+          {showDebug && debugInfo && (
+            <div className="bg-gray-900 border border-gray-700 rounded p-2 mb-2 font-mono text-[10px] break-all">
+              <div><span className="text-gray-400">Wallet:</span> {debugInfo.wallet}</div>
+              <div><span className="text-gray-400">USDC Mint:</span> {debugInfo.mint}</div>
+              <div><span className="text-gray-400">ATA:</span> {debugInfo.ata}</div>
+              <div><span className="text-gray-400">RPC:</span> {debugInfo.rpc}</div>
+              <div><span className="text-gray-400">Balance (raw):</span> {debugInfo.balance}</div>
+              <div><span className="text-gray-400">Balance (USDC):</span> {debugInfo.uiAmount ?? "null"}</div>
+              <div><span className="text-gray-400">Admin/Mod:</span> {isAdminOrMod ? "YES" : "NO"}</div>
+              {debugInfo.error && (
+                <div className="text-red-400"><span className="text-gray-400">Error:</span> {debugInfo.error}</div>
+              )}
+              <button 
+                onClick={() => {
+                  getUsdcBalanceDebug(walletPublicKey.toBase58()).then(info => {
+                    setDebugInfo(info);
+                  });
+                }}
+                className="text-emerald-400 underline cursor-pointer mt-1"
+              >
+                Refresh Balance
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+      
+      <div className="flex justify-end items-center">
+        <Button
+          onClick={handleSubmit}
+          variant="marketGradient"
+          className="cursor-pointer"
+          disabled={inProgress}
+        >
+          {editId ? "Resubmit Market" : "Submit Market"}
+          {inProgress && <span className="animate-pulse">⏳</span>}
+        </Button>
+      </div>
     </div>
   );
 };

@@ -60,18 +60,87 @@ export async function getOrCreateUsdcAta(
 }
 
 /**
- * Get USDC balance for a wallet
+ * Get USDC balance for a wallet - with detailed debug logging
  */
 export async function getUsdcBalance(walletAddress: string): Promise<bigint> {
+  console.log("[USDC Balance Check] Starting...");
+  console.log("[USDC Balance Check] Wallet:", walletAddress);
+  console.log("[USDC Balance Check] USDC Mint:", USDC_MINT.toBase58());
+  
   const connection = getConnection();
+  console.log("[USDC Balance Check] RPC endpoint:", (connection as any)._rpcEndpoint || "unknown");
+  
   const owner = new PublicKey(walletAddress);
   const ata = await getAssociatedTokenAddress(USDC_MINT, owner);
+  console.log("[USDC Balance Check] Derived ATA:", ata.toBase58());
 
   try {
     const balance = await connection.getTokenAccountBalance(ata);
-    return BigInt(balance.value.amount);
-  } catch {
+    console.log("[USDC Balance Check] Raw balance response:", JSON.stringify(balance.value));
+    console.log("[USDC Balance Check] Balance amount (raw):", balance.value.amount);
+    console.log("[USDC Balance Check] Balance UI amount:", balance.value.uiAmount);
+    const result = BigInt(balance.value.amount);
+    console.log("[USDC Balance Check] BigInt result:", result.toString());
+    return result;
+  } catch (err: any) {
+    console.error("[USDC Balance Check] ERROR:", err?.message || err);
+    console.error("[USDC Balance Check] Full error:", JSON.stringify(err, Object.getOwnPropertyNames(err)));
     return BigInt(0);
+  }
+}
+
+/**
+ * Get USDC balance with full debug info returned as an object
+ */
+export async function getUsdcBalanceDebug(walletAddress: string): Promise<{
+  wallet: string;
+  mint: string;
+  ata: string;
+  rpc: string;
+  balance: string;
+  uiAmount: number | null;
+  error: string | null;
+}> {
+  const connection = getConnection();
+  const rpc = (connection as any)._rpcEndpoint || "unknown";
+  const mint = USDC_MINT.toBase58();
+  
+  try {
+    const owner = new PublicKey(walletAddress);
+    const ata = await getAssociatedTokenAddress(USDC_MINT, owner);
+    
+    try {
+      const balance = await connection.getTokenAccountBalance(ata);
+      return {
+        wallet: walletAddress,
+        mint,
+        ata: ata.toBase58(),
+        rpc,
+        balance: balance.value.amount,
+        uiAmount: balance.value.uiAmount,
+        error: null,
+      };
+    } catch (err: any) {
+      return {
+        wallet: walletAddress,
+        mint,
+        ata: ata.toBase58(),
+        rpc,
+        balance: "0",
+        uiAmount: 0,
+        error: err?.message || String(err),
+      };
+    }
+  } catch (err: any) {
+    return {
+      wallet: walletAddress,
+      mint,
+      ata: "derivation_failed",
+      rpc,
+      balance: "0",
+      uiAmount: 0,
+      error: err?.message || String(err),
+    };
   }
 }
 
