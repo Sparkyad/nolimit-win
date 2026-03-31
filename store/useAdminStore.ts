@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { getAuthToken } from "@/lib/authToken";
 
 interface AdminState {
   role: string;
@@ -12,10 +13,17 @@ export const useAdminStore = create<AdminState>((set) => ({
 
   checkAdmin: async () => {
     try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/role`,
         {
           credentials: "include",
+          headers,
         }
       );
       const data = await res.json();

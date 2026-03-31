@@ -9,17 +9,17 @@ import { slugifyFilename } from "@/utils/slugify-filename";
 import { getUsdcBalance, getUsdcBalanceDebug } from "@/lib/solanaTrade";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-// thirdweb removed - using Solana
 import { useAdminStore } from "@/store/useAdminStore";
+import { authFetch, getAuthToken } from "@/lib/authToken";
 
 const uploadToCloudflare = async (file: File) => {
   const safeFilename = slugifyFilename(file.name);
-  const res = await fetch(
+  // Use authFetch for authenticated upload URL request
+  const res = await authFetch(
     `${process.env.NEXT_PUBLIC_API_BASE_URL
     }/api/markets/upload-url?filename=${encodeURIComponent(
       safeFilename
-    )}&contentType=${encodeURIComponent(file.type)}`,
-    { credentials: "include" }
+    )}&contentType=${encodeURIComponent(file.type)}`
   );
 
   if (!res.ok) throw new Error("Failed to get upload URL");
@@ -128,7 +128,16 @@ export const SubmitBtns = ({
     }
 
     try {
-      setInProgress(true)
+      setInProgress(true);
+
+      // Check if user has auth token
+      const token = getAuthToken();
+      if (!token) {
+        showErrorToast("Please wait for wallet authentication to complete, then try again.");
+        setInProgress(false);
+        return;
+      }
+
       if (!isAdminOrMod && walletPublicKey) {
         const marketCreationFee = BigInt(10_000_000); // $10 USDC in 6 decimals
         console.log("[Submit] Checking balance for:", walletPublicKey.toBase58());
@@ -159,16 +168,15 @@ export const SubmitBtns = ({
       if (data.videoFile) {
         videoUrl = await uploadToCloudflare(data.videoFile);
       }
-      const url = editId
-        ? `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/markets`
-        : `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/markets`;
 
-      const res = await fetch(url, {
+      const url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/markets`;
+
+      // Use authFetch to include Bearer token
+      const res = await authFetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include",
         body: JSON.stringify({
           ...(editId ? { rejectedMarketId: editId } : {}),
           question: data.question,
@@ -184,7 +192,9 @@ export const SubmitBtns = ({
       });
 
       if (!res.ok) {
-        throw new Error("Market submission failed");
+        const errBody = await res.json().catch(() => ({}));
+        console.error("[Submit] API error:", res.status, errBody);
+        throw new Error(errBody.error || "Market submission failed");
       }
 
       showSuccessToast(
@@ -194,10 +204,10 @@ export const SubmitBtns = ({
       );
 
       router.push("/dashboard");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting market:", error);
       showErrorToast(
-        "There was an error submitting the market. Please try again."
+        error?.message || "There was an error submitting the market. Please try again."
       );
     }
     finally {
@@ -225,6 +235,7 @@ export const SubmitBtns = ({
               <div><span className="text-gray-400">Balance (raw):</span> {debugInfo.balance}</div>
               <div><span className="text-gray-400">Balance (USDC):</span> {debugInfo.uiAmount ?? "null"}</div>
               <div><span className="text-gray-400">Admin/Mod:</span> {isAdminOrMod ? "YES" : "NO"}</div>
+              <div><span className="text-gray-400">Auth Token:</span> {getAuthToken() ? "Present" : "MISSING"}</div>
               {debugInfo.error && (
                 <div className="text-red-400"><span className="text-gray-400">Error:</span> {debugInfo.error}</div>
               )}
