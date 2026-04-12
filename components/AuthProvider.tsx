@@ -7,16 +7,19 @@ import { setAuthToken, clearAuthToken, getAuthToken } from "@/lib/authToken";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL!;
 
 /**
- * AuthProvider: Automatically authenticates with the backend when a Solana wallet connects.
+ * AuthProvider: Attempts auto-authentication when a Solana wallet connects.
+ * If auto-login fails (e.g., user doesn't approve signature), the submit button
+ * will trigger login on-demand instead.
+ * 
  * Stores the JWT in localStorage for use as Bearer token in cross-origin API requests.
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { publicKey, signMessage, connected, disconnect } = useWallet();
+  const { publicKey, signMessage, connected } = useWallet();
   const checkAdmin = useAdminStore((state) => state.checkAdmin);
   const loginAttempted = useRef(false);
 
   useEffect(() => {
-    if (!connected || !publicKey || !signMessage) {
+    if (!connected || !publicKey) {
       // Wallet disconnected - clear token
       if (!connected) {
         clearAuthToken();
@@ -33,11 +36,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // If signMessage isn't available yet, skip auto-login
+    // The submit button will handle login on-demand
+    if (!signMessage) return;
+
     // Prevent duplicate login attempts
     if (loginAttempted.current) return;
     loginAttempted.current = true;
 
-    // Auto-login with the backend
+    // Auto-login with the backend (best-effort, non-blocking)
     (async () => {
       try {
         console.log("[AuthProvider] Starting auto-login for:", publicKey.toBase58());
@@ -47,7 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           `${API_BASE_URL}/api/auth/solana-payload?address=${publicKey.toBase58()}`
         );
         if (!payloadRes.ok) {
-          console.error("[AuthProvider] Failed to get login payload:", payloadRes.status);
+          console.warn("[AuthProvider] Backend not available for auto-login, will login on-demand");
+          loginAttempted.current = false;
           return;
         }
         const payload = await payloadRes.json();
@@ -82,21 +90,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (loginRes.ok) {
           const loginData = await loginRes.json();
           if (loginData.token) {
-            // Step 5: Store JWT in localStorage for Bearer token auth
+            // Store JWT in localStorage for Bearer token auth
             setAuthToken(loginData.token);
-            console.log("[AuthProvider] Login successful, token stored");
+            console.log("[AuthProvider] Auto-login successful, token stored");
 
             // Check admin role now that we're authenticated
             checkAdmin();
           }
         } else {
-          const err = await loginRes.json().catch(() => ({}));
-          console.error("[AuthProvider] Login failed:", err);
-          loginAttempted.current = false; // Allow retry
+          console.warn("[AuthProvider] Auto-login failed, will login on-demand");
+          loginAttempted.current = false;
         }
       } catch (error: any) {
-        console.error("[AuthProvider] Auto-login error:", error?.message || error);
-        loginAttempted.current = false; // Allow retry
+        // Don't show errors for auto-login failures - the submit button will handle it
+        console.warn("[AuthProvider] Auto-login skipped:", error?.message || error);
+        loginAttempted.current = false;
       }
     })();
   }, [connected, publicKey, signMessage, checkAdmin]);
